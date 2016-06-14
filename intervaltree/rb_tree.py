@@ -48,5 +48,5 @@ class RBTree(BSTree):
     @staticmethod
     def rb_delete_fixup(node, tree):
         from .rb_tree_funcs import rb_delete_fixup
-        return rb_delete_fixup(node, tree)
+        return rb_delete_fixup(tree, node)
 

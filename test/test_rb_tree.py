@@ -3,6 +3,7 @@ from intervaltree.print_tree import *
 from intervaltree.rb_tree import *
 from intervaltree.rb_tree_node import *
 from collections import deque
+from intervaltree.bs_tree_funcs import inorder_walk
 
 
 def test_begin():
@@ -107,7 +108,10 @@ def assert_valid_rb_tree(a_tree: RBTree):
     assert a_tree.root.black
     assert a_tree.nil.black
     assert_black_balanced_trees(a_tree)
-    for node in RBTreeNode.inorder_walk(a_tree.root, False):
+    for node in inorder_walk(a_tree.root):
+        if node.parent is a_tree.nil:
+            assert  node.is_root
+
         assert node.black or not node.black
         if node.red:
             assert node.left_child.black and node.right_child.black

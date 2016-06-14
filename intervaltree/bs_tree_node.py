@@ -56,7 +56,8 @@ class BSTreeNode():
         if recursive:
             yield from BSTreeNode._inorder_walk_recursive(a_root_node)
         else:
-            yield from BSTreeNode._inorder_walk_non_recursive(a_root_node)
+            from .bs_tree_funcs import inorder_walk
+            yield from inorder_walk(a_root_node)
 
     @staticmethod
     def _inorder_walk_recursive(a_node):
@@ -65,21 +66,6 @@ class BSTreeNode():
         yield from BSTreeNode._inorder_walk_recursive(a_node.left_child)
         yield a_node
         yield from BSTreeNode._inorder_walk_recursive(a_node.right_child)
-
-    @staticmethod
-    def _inorder_walk_non_recursive(a_root_node):
-
-        node_stack = LifoQueue()
-        current_item = a_root_node
-        while True:
-            while current_item:
-                node_stack.put(current_item)
-                current_item = current_item.left_child
-            if node_stack.empty(): break
-            tmp_item = node_stack.get()
-            yield tmp_item
-
-            current_item = tmp_item.right_child
 
     @staticmethod
     def get_minimum(a_node):

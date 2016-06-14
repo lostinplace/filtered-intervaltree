@@ -1,6 +1,7 @@
 from .bs_tree import BSTree
 from .bs_tree_node import BSTreeNode
 from typing import Generator
+from queue import LifoQueue
 
 
 _node_relationships = [
@@ -119,3 +120,18 @@ def _search_node_non_recursive(a_node: BSTreeNode, a_key) -> Generator[BSTreeNod
 
         direction_key = a_key <= current_node.key and "left_child" or "right_child"
         current_node = getattr(current_node, direction_key)
+
+
+def inorder_walk(a_root_node: BSTreeNode):
+    node_stack = LifoQueue()
+    current_item = a_root_node
+    while True:
+        while current_item:
+            node_stack.put(current_item)
+            current_item = current_item.left_child
+        if node_stack.empty():
+            break
+        tmp_item = node_stack.get()
+        yield tmp_item
+
+        current_item = tmp_item.right_child

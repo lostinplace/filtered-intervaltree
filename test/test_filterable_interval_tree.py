@@ -1,4 +1,5 @@
 from intervaltree.i_tree_funcs import *
+from intervaltree.bs_tree_funcs import inorder_walk
 from .test_rb_tree import assert_black_balanced_trees, assert_relationships, assert_valid_rb_tree
 from intervaltree.print_tree import print_tree_diagram
 from .test_easy_hashes import id_generator
@@ -28,18 +29,19 @@ def test_rb_insertion_integrity():
         assert test_tree.root.black
         assert test_tree.nil.black
         assert_black_balanced_trees(test_tree)
-        for node in RBTreeNode.inorder_walk(test_tree.root, False):
+        for node in inorder_walk(test_tree.root):
             assert node.black or not node.black
             if node.red:
                 assert node.left_child.black and node.right_child.black
 
 
-
 def generate_node(interval, filter_string):
     interval = Interval(*interval)
-    node = FilterableIntervalTreeNode(interval, {})
-    node.filter_vector = generate_basic_filter_vector(filter_string)
+    vec = generate_basic_filter_vector(filter_string)
+    node = FilterableIntervalTreeNode(interval, filter_string, vec)
+
     return node
+
 
 def test_rotations():
     test_tree = FilterableIntervalTree()
@@ -103,10 +105,17 @@ def test_rotations():
 
 
 def assert_valid_filterable_interval_tree(tree: FilterableIntervalTree):
-    for node in RBTreeNode.inorder_walk(tree.root):
+    tracker_a = 0
+    tracker_b = 0
+    for node in inorder_walk(tree.root):
+        tracker_a += 1
+        vec = generate_basic_filter_vector(node.payload)
+        vals = [node.key.end, node.left_child.subtree_maximum, node.right_child.subtree_maximum]
+        assert node.subtree_maximum == max(vals)
         parent = node.parent
         while parent:
-            assert generate_basic_filter_vector(node.payload) in parent
+            tracker_b += 1
+            assert vec in parent
             assert node.filter_vector in parent
             # assert node.key.begin >= parent.subtree_minimum
             assert node.key.end <= parent.subtree_maximum
@@ -151,7 +160,7 @@ def test_search_interval_basic():
     payload_1 = id_generator(15)
     node_1 = fitn(interval_1, payload_1)
     assert vec(payload_1) == node_1.filter_vector
-    nodes = build_random_nodes(100000)
+    nodes = build_random_nodes(10000)
     insertion_index = random.randint(0, len(nodes)-1)
     nodes.insert(insertion_index, node_1)
     insert_nodes(test_tree, nodes)
@@ -159,29 +168,62 @@ def test_search_interval_basic():
     assert result_node.key.overlaps(interval_1)
 
 
-def test_find_advanced():
-    FITN = FilterableIntervalTreeNode
-    vec = generate_basic_filter_vector
+def test_search_interval_complete():
     test_tree = FilterableIntervalTree()
     random.seed('test')
-    interval_1_values = (random.randint(0, 1000), random.randint(0, 30))
-    interval_1 = Interval(*interval_1_values)
-    payload_1 = id_generator(15)
-    node_1 = FITN(interval_1, payload_1)
-    assert vec(payload_1) == node_1.filter_vector
-    data = map(lambda _: (random.randint(0, 1000), random.randint(0, 30)), range(0, 1000))
-    intervals = map(lambda v: Interval(v[0], v[0]+v[1]), data)
-    node_data = map(lambda i: FITN(i, id_generator(15)), intervals)
-    nodes = list(node_data)
-    insertion_index = random.randint(0, len(nodes)-1)
-    nodes.insert(insertion_index, node_1)
+    nodes = build_random_nodes(1000)
+    insert_nodes(test_tree, nodes)
+    random.shuffle(nodes)
     for node in nodes:
-        add_node(test_tree, node)
-    #TODO Test needs to be completed
+        result_node = search_interval(test_tree, node.key)
+        assert result_node.key.overlaps(node.key)
 
 
+def test_fi_removal_integrity():
+    test_tree = FilterableIntervalTree()
+    random.seed('test')
+
+    # data = map(lambda _: random.weibullvariate(1, 1), range(0,100))
+
+    nodes = build_random_nodes(1500)
+    insert_nodes(test_tree, nodes)
+
+    random.shuffle(nodes)
+    tracker = 0
+    assert_valid_filterable_interval_tree(test_tree)
+    for removal_node in nodes:
+        delete_node(test_tree, removal_node)
+        assert_valid_rb_tree(test_tree)
+        assert_valid_filterable_interval_tree(test_tree)
+        tracker += 1
 
 
+def test_arbitrary_operations():
+    test_tree = FilterableIntervalTree()
+    random.seed('test')
 
+    nodes = build_random_nodes(1000)
+    insert_nodes(test_tree, nodes)
 
+    random.shuffle(nodes)
+    tracker = 0
+    assert_valid_filterable_interval_tree(test_tree)
+    ops = range(0, 100)
+    for op in ops:
+        choice = random.getrandbits(1)
+        if choice:
+            [node] = build_random_nodes(1)
+            add_node(test_tree, node)
+            insert_index = random.randint(0, len(nodes)-1)
+            nodes.insert(insert_index, node)
+        else:
+            node = nodes.pop()
+            delete_node(test_tree, node)
 
+        assert_valid_rb_tree(test_tree)
+        assert_valid_filterable_interval_tree(test_tree)
+        interval_map = map(lambda x: x.key, nodes)
+        for i in set(interval_map):
+            result_node = search_interval(test_tree, i)
+            assert result_node.key.overlaps(i)
+        tracker += 1

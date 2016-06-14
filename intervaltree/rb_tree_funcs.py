@@ -1,7 +1,7 @@
 from .rb_tree import RBTree
 from .rb_tree_node import RBTreeNode
 from types import FunctionType
-from .bs_tree_funcs import BSTree, add_node as bst_add_node
+from .bs_tree_funcs import BSTree, add_node as bst_add_node, get_extreme_from_node
 
 
 def left_rotate(tree: RBTree, a_node: RBTreeNode):
@@ -78,40 +78,8 @@ def redblack_insert_fixup(tree: RBTree,
     tree.root.black = True
 
 
-def delete_node(tree, node: RBTreeNode):
-    z = node
-    y = z
-    y_original_color = y.color
-
-    if z.left_child is tree.nil:
-        x = z.right_child
-        RBTree.transplant(tree, z, z.right_child)
-    elif z.right_child is tree.nil:
-        x = z.left_child
-        RBTree.transplant(tree, z, z.left_child)
-    else:
-        y = RBTreeNode.get_minimum(z.right_child)
-        y_original_color = y.color
-        x = y.right_child
-        if y.parent is z:
-            x.parent = y
-        else:
-            RBTree.transplant(tree, y, y.right_child)
-            y.right_child = z.right_child
-            z.right_child.parent = y
-        RBTree.transplant(tree, z, y)
-        y.left_child = z.left_child
-        y.left_child.parent = y
-        y.color = z.color
-    if y_original_color is "black":
-        rb_delete_fixup(x, tree)
-
-
-def rb_delete_fixup(
-        node: RBTreeNode,
-        tree: RBTree,
-        left_rotate_func=left_rotate,
-        right_rotate_func=right_rotate):
+def rb_delete_fixup(tree: RBTree, node: RBTreeNode,
+                    left_rotate_func=left_rotate, right_rotate_func=right_rotate):
     x = node
     while x is not tree.root and x.black:
         if x is x.parent.left_child:
@@ -170,3 +138,49 @@ def transplant(tree, a_node: RBTreeNode, a_replacement: RBTreeNode):
     else:
         u.parent.right_child = v
     v.parent = u.parent
+
+
+def tree_successor(tree: RBTree, node: RBTreeNode) -> RBTreeNode:
+    return node.right_child and tree_minimum(tree, node.right_child)
+
+
+def tree_minimum(tree: RBTree, node: RBTreeNode) -> RBTreeNode:
+    tree_nil = tree.nil
+    last = node
+    current = node.left_child
+    while current is not tree_nil:
+        last = current
+        current = current.left_child
+    return last
+
+
+def delete_node(tree: RBTree, node: RBTreeNode, transplant_func=transplant, fixup_func=rb_delete_fixup):
+    z = node
+    y = z
+    y_original_color = y.color
+
+    if z.left_child is tree.nil:
+        x = z.right_child
+        transplant(tree, z, z.right_child)
+    elif z.right_child is tree.nil:
+        x = z.left_child
+        transplant(tree, z, z.left_child)
+    else:
+        y = tree_successor(tree, z)
+        y_original_color = y.color
+        x = y.right_child
+        if y.parent is z:
+            x.parent = y
+        else:
+            transplant(tree, y, y.right_child)
+            y.right_child = z.right_child
+            z.right_child.parent = y
+        transplant(tree, z, y)
+        y.left_child = z.left_child
+        y.left_child.parent = y
+        y.color = z.color
+    if y_original_color is "black":
+        fixup_func(tree, x)
+    tree.nil.parent = None
+
+
