@@ -72,11 +72,11 @@ def test_rotations():
     vec = generate_basic_filter_vector
 
     assert_relationships(right_rotated_relationships)
-
-    assert vec('NODE X') not in node_y
-    assert vec('NODE G') in node_x
-    assert vec('NODE Y') in node_x
-    assert vec('NODE A') not in node_y
+    gqn = generate_query_node
+    assert gqn(payload='NODE X') not in node_y
+    assert gqn(payload='NODE G') in node_x
+    assert gqn(payload='NODE Y') in node_x
+    assert gqn(payload='NODE A') not in node_y
 
     # assert node_y.subtree_minimum == 6
     assert node_x.subtree_maximum == 14
@@ -84,10 +84,10 @@ def test_rotations():
     left_rotate(test_tree, node_x)
     assert_relationships(left_rotated_relationships)
 
-    assert vec('NODE X') in node_y
-    assert vec('NODE G') not in node_x
-    assert vec('NODE Y') not in node_x
-    assert vec('NODE A') in node_y
+    assert gqn(payload='NODE X') in node_y
+    assert gqn(payload='NODE G') not in node_x
+    assert gqn(payload='NODE Y') not in node_x
+    assert gqn(payload='NODE A') in node_y
 
     # assert node_y.subtree_minimum == 3
     assert node_x.subtree_maximum == 12
@@ -95,10 +95,10 @@ def test_rotations():
     right_rotate(test_tree, node_y)
     assert_relationships(right_rotated_relationships)
 
-    assert vec('NODE X') not in node_y
-    assert vec('NODE G') in node_x
-    assert vec('NODE Y') in node_x
-    assert vec('NODE A') not in node_y
+    assert gqn(payload='NODE X') not in node_y
+    assert gqn(payload='NODE G') in node_x
+    assert gqn(payload='NODE Y') in node_x
+    assert gqn(payload='NODE A') not in node_y
 
     # assert node_y.subtree_minimum == 6
     assert node_x.subtree_maximum == 14
@@ -107,16 +107,25 @@ def test_rotations():
 def assert_valid_filterable_interval_tree(tree: FilterableIntervalTree):
     tracker_a = 0
     tracker_b = 0
+
+    assert tree.nil.filter_vector == 0
+    assert tree.nil.subtree_filter_vector == 0
     for node in inorder_walk(tree.root):
         tracker_a += 1
-        vec = generate_basic_filter_vector(node.payload)
+        qn = generate_query_node(payload=node.payload)
+
         vals = [node.key.end, node.left_child.subtree_maximum, node.right_child.subtree_maximum]
         assert node.subtree_maximum == max(vals)
+        vecs = [node.filter_vector, node.left_child.subtree_filter_vector, node.right_child.subtree_filter_vector]
+        minvec = 0
+        for vec in vecs:
+            minvec |= vec
+        assert node.subtree_filter_vector == minvec
         parent = node.parent
         while parent:
             tracker_b += 1
-            assert vec in parent
-            assert node.filter_vector in parent
+            assert qn in parent
+            assert node in parent
             # assert node.key.begin >= parent.subtree_minimum
             assert node.key.end <= parent.subtree_maximum
             parent = parent.parent
@@ -185,7 +194,7 @@ def test_fi_removal_integrity():
 
     # data = map(lambda _: random.weibullvariate(1, 1), range(0,100))
 
-    nodes = build_random_nodes(1500)
+    nodes = build_random_nodes(500)
     insert_nodes(test_tree, nodes)
 
     random.shuffle(nodes)

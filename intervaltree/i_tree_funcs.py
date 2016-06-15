@@ -9,35 +9,41 @@ import sys
 import math
 
 
-def check_contains(node: 'FilterableIntervalTreeNode', content):
+def check_contains(node: 'FilterableIntervalTreeNode', content: 'FilterableIntervalTreeNode'):
     """
     checks to see if the specified content is available in the node's subtrees
     :param node: node root to search
     :param content: content to search for, cand be a filterablenode, a filter vector, or content that generates a filter vector
     :return: true if available
     """
-    if isinstance(content, int):
-        vector = content
-    elif isinstance(content, FilterableIntervalTreeNode):
-        vector = content.filter_vector
-    elif hasattr(content, 'generate_filter_vector'):
-        vector = content.generate_filter_vector
+    is_contained = content.filter_vector & node.subtree_filter_vector == content.filter_vector
+
+    return is_contained
+
+
+def generate_query_node(begin=-math.inf, end=math.inf, payload=None, filter_vector=0):
+    tmp_interval = Interval(begin, end)
+    if not filter_vector and hasattr(payload, 'filter_vector'):
+        vector = filter_vector
+    elif filter_vector:
+        vector = filter_vector
     else:
-        vector = generate_basic_filter_vector(str(content))
-    return (vector & node.subtree_filter_vector) == content
+        vector = generate_basic_filter_vector(str(payload))
+    tmp_node = FilterableIntervalTreeNode(tmp_interval, payload, vector)
+    return tmp_node
 
 
 class FilterableIntervalTreeNode(RBTreeNode):
 
-    def __init__(self, key: Interval, payload=None, filter_vector: int=0):
+    def __init__(self, key: Interval, payload=None, filter_vector: int = None):
         self.key = key,
         self.payload = payload or None
         if key is not None:
             self.subtree_maximum = key.end
 
-        if not filter_vector:
-            if hasattr(payload, 'generate_filter_vector'):
-                self.filter_vector = payload.generate_filter_vector
+        if filter_vector is None:
+            if hasattr(payload, 'filter_vector'):
+                self.filter_vector = payload.filter_vector
             else:
                 self.filter_vector = generate_basic_filter_vector(str(payload))
         else:
@@ -45,7 +51,7 @@ class FilterableIntervalTreeNode(RBTreeNode):
         self.subtree_filter_vector = self.filter_vector
         super().__init__(key)
 
-    def __contains__(self, item):
+    def __contains__(self, item: 'FilterableIntervalTreeNode'):
         return check_contains(self, item)
 
 
@@ -53,7 +59,7 @@ class FilterableIntervalTree(RBTree):
 
     def __init__(self):
         super().__init__()
-        self.nil = FilterableIntervalTreeNode(None, None)
+        self.nil = FilterableIntervalTreeNode(None, None, 0)
         self.nil.black = True
         self.nil.tree = self
         self.nil.subtree_maximum = -math.inf
@@ -159,6 +165,12 @@ def update_statistics_in_chain(tree: FilterableIntervalTree, node: FilterableInt
             parent.left_child.subtree_maximum,
             parent.right_child.subtree_maximum
         )
+
+        parent.subtree_filter_vector = \
+            parent.left_child.subtree_filter_vector | \
+            parent.right_child.subtree_filter_vector | \
+            parent.filter_vector
+
         parent = parent.parent
 
 
