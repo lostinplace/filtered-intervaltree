@@ -37,3 +37,27 @@ def test_compare_addition():
 
     assert g_op_1_result < g_op_2_result
     assert s_op_1_result < s_op_2_result
+
+
+def test_some_nonsense():
+
+    class stub():
+        def __init__(self, string):
+            self.tstr = string
+
+        def blah(self, string):
+            return self.tstr == string
+
+    s = stub('ok')
+
+    class testclass():
+        def __init__(self, an_int):
+            self.teq = an_int.__eq__
+            self.tblah = s.blah
+
+    t = testclass(5)
+    assert t.teq(5)
+    assert not t.teq(6)
+    assert t.tblah('ok')
+    assert not t.tblah('not ok')
+

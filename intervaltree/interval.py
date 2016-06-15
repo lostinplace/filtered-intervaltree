@@ -33,6 +33,30 @@ def combine_intervals(interval_a, interval_b: 'Interval') -> 'Interval':
     return Interval(begin, end)
 
 
+def interval_contains(interval_a: 'Interval', interval_b: 'Interval') -> bool:
+    return interval_a.begin <= interval_b.begin and interval_a.end >= interval_b.end
+
+
+def interval_overlaps(interval_a: 'Interval', interval_b: 'Interval') -> bool:
+    first = interval_a if interval_a <= interval_b else interval_b
+    second = interval_b if interval_a is first else interval_a
+    return second.end > first.begin and second.begin < first.end
+
+
+def get_overlap(interval_a: 'Interval', interval_b: 'Interval') -> 'Interval':
+    contained = interval_b in interval_a
+    if contained:
+        return interval_b
+    if interval_b.begin <= interval_a.begin:
+        begin = interval_a.begin
+        end = interval_b.end
+        return Interval(begin, end)
+
+    begin = interval_b.begin
+    end = interval_a.end
+    return Interval(begin, end)
+
+
 class Interval(namedtuple('Interval', ['begin', 'end'])):
     __slots__ = ()
 
@@ -53,7 +77,7 @@ class Interval(namedtuple('Interval', ['begin', 'end'])):
         return self.begin >= other.begin
 
     def __contains__(self, item: 'Interval'):
-        return self.begin <= item.begin and self.end >= item.end
+        return interval_contains(self, item)
 
     def __len__(self):
         return self.end - self.begin
@@ -64,25 +88,13 @@ class Interval(namedtuple('Interval', ['begin', 'end'])):
         return Interval(begin, end)
 
     def overlaps(self, other: 'Interval') -> bool:
-        first = self if self <= other else other
-        second = other if self is first else self
-        return second.end > first.begin and second.begin < first.end
+        return interval_overlaps(self, other)
 
     def touches(self, other: 'Interval') -> bool:
         return self.begin == other.end or self.end == other.begin
 
     def _get_overlap(self, other: 'Interval') -> 'Interval':
-        contained = other in self
-        if contained:
-            return other
-        if other.begin <= self.begin:
-            begin = self.begin
-            end = other.end
-            return Interval(begin, end)
-
-        begin = other.begin
-        end = self.end
-        return Interval(begin, end)
+        return get_overlap(self, other)
 
     def remove(self, other: 'Interval') -> List['Interval']:
         overlaps = self.overlaps(other)
