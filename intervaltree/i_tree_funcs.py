@@ -159,17 +159,27 @@ def transplant(tree, a_node: FilterableIntervalTreeNode, a_replacement: Filterab
 
 def update_statistics_in_chain(tree: FilterableIntervalTree, node: FilterableIntervalTreeNode):
     parent = node.parent
-    while parent is not tree.nil:
-        parent.subtree_maximum = max(
+    no_updates = 0
+    while parent is not tree.nil and no_updates < 400:
+        expected_max = max(
             parent.key.end,
             parent.left_child.subtree_maximum,
             parent.right_child.subtree_maximum
         )
 
-        parent.subtree_filter_vector = \
+        expected_sfv = \
             parent.left_child.subtree_filter_vector | \
             parent.right_child.subtree_filter_vector | \
             parent.filter_vector
+
+        needs_update = (expected_max != parent.subtree_maximum) or \
+                       (expected_sfv != parent.subtree_filter_vector)
+
+        if needs_update:
+            parent.subtree_maximum = expected_max
+            parent.subtree_filter_vector = expected_sfv
+        else:
+            no_updates += 1
 
         parent = parent.parent
 
@@ -195,18 +205,18 @@ def delete_node(tree: FilterableIntervalTree, node: FilterableIntervalTreeNode):
             transplant(tree, y, y.right_child)
             y.right_child = z.right_child
             y.right_child.parent = y
-            y.subtree_filter_vector = z.right_child.subtree_filter_vector | y.filter_vector
+            # y.subtree_filter_vector = z.right_child.subtree_filter_vector | y.filter_vector
 
         y.left_child = z.left_child
         y.left_child.parent = y
-        y.subtree_filter_vector |= z.left_child.subtree_filter_vector
+        # y.subtree_filter_vector |= z.left_child.subtree_filter_vector
         transplant(tree, z, y)
         y.color = z.color
     if y_original_color is "black":
         rb_df(tree, x, left_rotate, right_rotate)
+
     update_statistics_in_chain(tree, x)
     tree.nil.parent = None
-
 
 
 def search_interval(tree: FilterableIntervalTree, interval: Interval) -> FilterableIntervalTreeNode:
