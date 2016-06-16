@@ -61,3 +61,15 @@ def test_some_nonsense():
     assert t.tblah('ok')
     assert not t.tblah('not ok')
 
+
+from collections import deque
+from queue import LifoQueue
+
+def test_queue_vs_deque_performance():
+    d = deque()
+    q = LifoQueue()
+
+    d.popleft()
+
+
+

@@ -5,7 +5,7 @@ from .rb_tree_funcs import redblack_insert_fixup, left_rotate as rb_lr, right_ro
     rb_delete_fixup as rb_df, delete_node as rb_d, tree_successor
 from .easy_hashes import hash_to_64
 import math
-from types import GeneratorType
+from typing import Generator
 
 
 def check_contains(node: 'FilterableIntervalTreeNode', content: 'FilterableIntervalTreeNode'):
@@ -20,14 +20,14 @@ def check_contains(node: 'FilterableIntervalTreeNode', content: 'FilterableInter
     return is_contained
 
 
-def generate_query_node(begin=-math.inf, end=math.inf, payload=None, filter_vector=0):
+def generate_query_node(begin:int=-math.inf, end:int=math.inf, payload=None, filter_vector:int=None):
     tmp_interval = Interval(begin, end)
-    if not filter_vector and hasattr(payload, 'filter_vector'):
+    vector = None
+    if filter_vector is None:
+        if hasattr(payload, 'filter_vector'):
+            vector = payload.filter_vector
+    elif isinstance(filter_vector, int):
         vector = filter_vector
-    elif filter_vector:
-        vector = filter_vector
-    else:
-        vector = generate_basic_filter_vector(str(payload))
     tmp_node = FilterableIntervalTreeNode(tmp_interval, payload, vector)
     return tmp_node
 
@@ -235,26 +235,32 @@ def search_interval(tree: FilterableIntervalTree, interval: Interval) -> Filtera
 
 
 from queue import LifoQueue
+from collections import deque
 
 
-def find_node(
+def query_tree(
         tree: FilterableIntervalTree,
         query_node: FilterableIntervalTreeNode,
         must_contain=True,
-        ) -> GeneratorType[FilterableIntervalTreeNode]:
+        ) -> Generator[FilterableIntervalTreeNode, None, None]:
 
-    query_interval = query_node.interval
-    query_interval_begin = query_node.interval
-    query_interval_end = query_node.interval
+    query_interval = query_node.key
+    query_interval_begin = query_interval.begin
+    query_interval_end = query_interval.end
     query_fv = query_node.filter_vector
-    query_payload = query_node.payload
-    search_queue = LifoQueue()
-    search_queue.put(tree.root)
+    qualifier = query_node.qualifies
+
+    track = 0
+
+    search_queue = deque()
+    search_queue.append(tree.root)
     interval_operation = interval_contains if must_contain else interval_overlaps
-    while not search_queue.empty():
-        current_node = search_queue.get()
-        current_node_qualifies = interval_operation(current_node.interval, query_interval) \
-            and query_node.qualifies(current_node)
+    not_root = False
+    while search_queue:
+        track += 1
+        current_node = search_queue.pop()
+        current_node_qualifies = interval_operation(current_node.key, query_interval) \
+            and qualifier(current_node.payload)
         if current_node_qualifies:
             yield current_node
 
@@ -266,20 +272,19 @@ def find_node(
 
         left_ok &= (query_fv & left_child.subtree_filter_vector == query_fv)
 
-        if left_ok:
-            search_queue.put(left_child)
-
         right_ok = right_child is not tree.nil and \
             right_child.subtree_maximum > query_interval_begin
 
-        if must_contain:
-            right_ok &= right_child.key.begin <= query_interval_begin and \
-                right_child.subtree_maximum >= query_interval_end
+        if must_contain and not_root:
+            #TODO there's another relationship that can be used to filter here
+            right_ok &= right_child.subtree_maximum >= query_interval_end
 
-        right_ok &= (query_fv & left_child.subtree_filter_vector == query_fv)
-
-        if left_ok:
-            search_queue.put(left_child)
+        right_ok &= (query_fv & right_child.subtree_filter_vector == query_fv)
 
         if right_ok:
-            search_queue.put(right_child)
+            search_queue.append(right_child)
+
+        if left_ok:
+            search_queue.append(left_child)
+
+        not_root = True

@@ -236,3 +236,39 @@ def test_arbitrary_operations():
             result_node = search_interval(test_tree, i)
             assert result_node.key.overlaps(i)
         tracker += 1
+
+
+def print_parents(tree, node):
+    current = node
+    tracker = 0
+    while current is not tree.nil:
+        print(current.payload, tracker)
+        tracker += 1
+        current = current.parent
+
+
+def test_tree_query_basic():
+
+    fitn = FilterableIntervalTreeNode
+    vec = generate_basic_filter_vector
+    test_tree = FilterableIntervalTree()
+    random.seed('test')
+    interval_1_values = (75, 78)
+    interval_1 = Interval(*interval_1_values)
+    payload_1 = id_generator(15)
+    node_1 = fitn(interval_1, payload_1)
+    assert vec(payload_1) == node_1.filter_vector
+    nodes = build_random_nodes(10000)
+    insertion_index = random.randint(0, len(nodes)-1)
+    nodes.insert(insertion_index, node_1)
+    insert_nodes(test_tree, nodes)
+
+    query = generate_query_node(75, 78, payload_1)
+    result_nodes = query_tree(test_tree, query, True)
+    results = list(result_nodes)
+
+    assert len(results) > 0
+
+    for node in results:
+        assert query.key in node.key
+        assert query.payload == node.payload
