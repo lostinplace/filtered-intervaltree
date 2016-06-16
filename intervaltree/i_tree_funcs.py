@@ -268,12 +268,12 @@ def query_tree(
         right_child = current_node.right_child
 
         left_ok = left_child is not tree.nil and \
-            left_child.subtree_maximum > query_interval_begin
+            left_child.subtree_maximum >= query_interval_begin
 
         left_ok &= (query_fv & left_child.subtree_filter_vector == query_fv)
 
         right_ok = right_child is not tree.nil and \
-            right_child.subtree_maximum > query_interval_begin
+            right_child.subtree_maximum >= query_interval_begin
 
         if must_contain and not_root:
             #TODO there's another relationship that can be used to filter here
