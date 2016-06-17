@@ -280,11 +280,11 @@ def test_tree_10_records():
     vec = generate_basic_filter_vector
     test_tree = FilterableIntervalTree()
     random.seed('test')
-    nodes = build_random_nodes(10000)
+    nodes = build_random_nodes(10)
     insert_nodes(test_tree, nodes)
 
     random.shuffle(nodes)
-    op_count = range(0, 10000)
+    op_count = range(0, 10)
     for i in op_count:
         node = nodes[i]
         query = generate_query_node(node.key.begin, node.key.end, node.payload)
