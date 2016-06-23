@@ -68,6 +68,7 @@ class FilterableIntervalTree(RBTree):
         self.nil.black = True
         self.nil.tree = self
         self.nil.subtree_maximum = -math.inf
+        self.root = self.nil
 
 
 def generate_basic_filter_vector(value: str):
@@ -120,7 +121,7 @@ def add_node(tree: FilterableIntervalTree, node: FilterableIntervalTreeNode) -> 
     node.left_child = node.right_child = tree.nil
     end = node.key.end
     begin = node.key.begin
-    if tree.root is None:
+    if tree.root is tree.nil:
         tree.root = node
         node.parent = tree.nil
         node.black = True
