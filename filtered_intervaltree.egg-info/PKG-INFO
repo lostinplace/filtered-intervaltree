@@ -1,14 +1,14 @@
 Metadata-Version: 1.1
 Name: filtered-intervaltree
-Version: 0.0.4
+Version: 0.0.5
 Summary: an intervaltree with early exit bloom filters
 Home-page: https://github.com/lostinplace/filtered-intervaltree
 Author: cwheeler
 Author-email: cmwhee@gmail.com
 License: MIT
-Description: This is a *triumph*
+Description: This is a **triumph**
         
-        I'm making a note here: *huge success*
+        I'm making a note here: **huge success**
 Keywords: rbtree intervaltree bloomfilter
 Platform: UNKNOWN
 Classifier: Development Status :: 3 - Alpha

@@ -1,19 +1,26 @@
 from setuptools import setup, find_packages
 from codecs import open
 from os import path
+import os
 
 here = path.abspath(path.dirname(__file__))
 
 with open(path.join(here, 'readme.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open(path.join(here, '.library-version'), encoding='utf-8') as f:
+    existing_version = f.read()
 
 with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     requirements = f.read().split('\n')
 
+env_version = os.environ.get('LIBVER')
+
+version = env_version or existing_version
+
 setup(
     name='filtered-intervaltree',
-    version='0.0.4',
+    version=version,
 
     description='an intervaltree with early exit bloom filters',
     long_description=long_description,
