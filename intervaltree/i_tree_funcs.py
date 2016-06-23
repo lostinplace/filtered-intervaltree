@@ -2,10 +2,11 @@ from intervaltree.interval import Interval, interval_overlaps, interval_contains
 from .rb_tree import RBTree
 from .rb_tree import RBTreeNode
 from .rb_tree_funcs import redblack_insert_fixup, left_rotate as rb_lr, right_rotate as rb_rr, \
-    rb_delete_fixup as rb_df, delete_node as rb_d, tree_successor
+    rb_delete_fixup as rb_df, tree_successor
 from .easy_hashes import hash_to_64
 import math
 from typing import Generator
+from collections import deque
 
 
 def check_contains(node: 'FilterableIntervalTreeNode', content: 'FilterableIntervalTreeNode'):
@@ -20,7 +21,7 @@ def check_contains(node: 'FilterableIntervalTreeNode', content: 'FilterableInter
     return is_contained
 
 
-def generate_query_node(begin:int=-math.inf, end:int=math.inf, payload=None, filter_vector:int=None):
+def generate_query_node(begin: int=-math.inf, end: int=math.inf, payload=None, filter_vector: int=None):
     tmp_interval = Interval(begin, end)
     vector = None
     if filter_vector is None:
@@ -125,7 +126,8 @@ def add_node(tree: FilterableIntervalTree, node: FilterableIntervalTreeNode) -> 
         node.black = True
         return node
 
-    current_node = tree.root
+    current_node = last_parent = tree.root
+    going_left = None
     while current_node is not tree.nil:
         last_parent = current_node
         going_left = begin <= current_node.key.begin
@@ -234,10 +236,6 @@ def search_interval(tree: FilterableIntervalTree, interval: Interval) -> Filtera
     return x
 
 
-from queue import LifoQueue
-from collections import deque
-
-
 def query_tree(
         tree: FilterableIntervalTree,
         query_node: FilterableIntervalTreeNode,
@@ -276,7 +274,7 @@ def query_tree(
             right_child.subtree_maximum >= query_interval_begin
 
         if must_contain and not_root:
-            #TODO there's another relationship that can be used to filter here
+            # TODO there's another relationship that can be used to filter here
             right_ok &= right_child.subtree_maximum >= query_interval_end
 
         right_ok &= (query_fv & right_child.subtree_filter_vector == query_fv)

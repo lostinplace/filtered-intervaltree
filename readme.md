@@ -1,3 +1,3 @@
-This is a *triumph*
+This is a **triumph**
 
-I'm making a note here: *huge success*
+I'm making a note here: **huge success**
