@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 export LIBVER=$1
 python setup.py egg_info
 python setup.py bdist_wheel

@@ -243,35 +243,45 @@ def query_tree(
         must_contain=True,
         ) -> Generator[FilterableIntervalTreeNode, None, None]:
 
+    tree_root = tree.root
+    tree_nil = tree.nil
+    if tree_root is tree_nil:
+        return
+
     query_interval = query_node.key
     query_interval_begin = query_interval.begin
     query_interval_end = query_interval.end
     query_fv = query_node.filter_vector
-    qualifier = query_node.qualifies
+
+    payload_qualifier = query_node.qualifies
 
     track = 0
 
     search_queue = deque()
-    search_queue.append(tree.root)
+    search_queue.append(tree_root)
     interval_operation = interval_contains if must_contain else interval_overlaps
     not_root = False
     while search_queue:
         track += 1
         current_node = search_queue.pop()
-        current_node_qualifies = interval_operation(current_node.key, query_interval) \
-            and qualifier(current_node.payload)
-        if current_node_qualifies:
+        current_node_qualifies = interval_operation(current_node.key, query_interval)
+        payload_qualifies = payload_qualifier(current_node.payload)
+
+        if payload_qualifies is NotImplemented:
+            payload_qualifies = query_node.filter_vector & current_node.filter_vector == query_node.filter_vector
+
+        if current_node_qualifies and payload_qualifies:
             yield current_node
 
         left_child = current_node.left_child
         right_child = current_node.right_child
 
-        left_ok = left_child is not tree.nil and \
+        left_ok = left_child is not tree_nil and \
             left_child.subtree_maximum >= query_interval_begin
 
         left_ok &= (query_fv & left_child.subtree_filter_vector == query_fv)
 
-        right_ok = right_child is not tree.nil and \
+        right_ok = right_child is not tree_nil and \
             right_child.subtree_maximum >= query_interval_begin
 
         if must_contain and not_root:
