@@ -293,3 +293,118 @@ def test_tree_10_records():
 
         assert result.payload == node.payload
         assert query.key in result.key
+
+
+def test_adjust_payload():
+    test_tree = FilterableIntervalTree()
+    payload_a = {'name': 'chris'}
+    node_a = FilterableIntervalTreeNode(Interval(50, 100), payload_a)
+    add_node(test_tree, node_a)
+    adjust_payload(test_tree, node_a, Interval(60, 70), {'state': 'b'})
+
+    expectations = [
+        (Interval(50, 60), payload_a),
+        (Interval(60, 70), {'state': 'b', 'name': 'chris'}),
+        (Interval(70, 100), payload_a)
+    ]
+
+    for i, node in enumerate(inorder_walk(test_tree.root)):
+        assert node.key == expectations[i][0]
+        assert node.payload == expectations[i][1]
+
+
+def test_failed_consolidation():
+    test_tree = FilterableIntervalTree()
+    payload_a = {'name': 'chris'}
+    node_a = FilterableIntervalTreeNode(Interval(50, 100), payload_a)
+    add_node(test_tree, node_a)
+    out = adjust_payload(test_tree, node_a, Interval(60, 70), {'name': 'manu'})
+    adjust_payload(test_tree, out, Interval(65, 70), payload_a)
+
+    expectations = [
+        (Interval(50, 60), payload_a),
+        (Interval(60, 65), {'name': 'manu'}),
+        (Interval(65, 100), payload_a)
+    ]
+
+    a = list(inorder_walk(test_tree.root))
+    assert len(a) == 3
+
+#todo ensure that consolidation isn't consolidating nodes when there's a gap between them
+
+# TODO Implement filter-aware predecesor and successor operations
+
+#     0:3(a)
+# -1:4(c)         3:5(a)
+#          2:3(b)        6:6(a)
+#                    5:18(c)
+# get_predecessor for 3:5(a) == 0:3(a)
+# get_successor for 3:5(a) == 5:6(a)
+
+
+def test_get_predecessor_and_successor_for_node():
+    test_tree = FilterableIntervalTree()
+    payload_a = {'name': 'chris'}
+    payload_b = {'name': 'manu'}
+    payload_c = {'name': 'olly'}
+    node_a = FilterableIntervalTreeNode(Interval(0, 3), payload_a)
+    node_b = FilterableIntervalTreeNode(Interval(-1, 4), payload_c)
+    node_c = FilterableIntervalTreeNode(Interval(3, 5), payload_a)
+    node_d = FilterableIntervalTreeNode(Interval(2, 3), payload_b)
+    node_e = FilterableIntervalTreeNode(Interval(6, 6), payload_a)
+    node_f = FilterableIntervalTreeNode(Interval(5, 18), payload_c)
+    add_node(test_tree, node_a)
+    add_node(test_tree, node_b)
+    add_node(test_tree, node_c)
+    add_node(test_tree, node_d)
+    add_node(test_tree, node_e)
+    add_node(test_tree, node_f)
+
+    result = get_predecessor_for_node(test_tree, node_c)
+    assert result == node_a
+
+    result = get_successor_for_node(test_tree, node_c)
+    assert result == node_e
+
+
+#           5:7(a)
+#       3:5(c)       10:18(a)
+#               6:7(a)       19:20(b)
+#                    8:9(d)       21:23(a)
+#                        9:10(a)
+
+# get_maximum_node("5(a)", "b" ) == 9(b)
+# get_maximum_node("3(c)", "b" ) == None
+
+def test_get_maximum_for_node():
+    tree = FilterableIntervalTree()
+    payload_a = {'name': 'chris'}
+    payload_b = {'name': 'manu'}
+    payload_c = {'name': 'olly'}
+    payload_d = {'name': 'lauren'}
+    node_a = FilterableIntervalTreeNode(Interval(5, 7), payload_a)
+    node_b = FilterableIntervalTreeNode(Interval(3, 5), payload_c)
+    node_c = FilterableIntervalTreeNode(Interval(10, 18), payload_a)
+    node_f = FilterableIntervalTreeNode(Interval(6, 7), payload_a)
+    node_g = FilterableIntervalTreeNode(Interval(8, 9), payload_d)
+    node_d = FilterableIntervalTreeNode(Interval(19, 20), payload_b)
+    node_e = FilterableIntervalTreeNode(Interval(21, 23), payload_a)
+    node_h = FilterableIntervalTreeNode(Interval(9, 10), payload_a)
+    add_node(tree, node_a)
+    add_node(tree, node_b)
+    add_node(tree, node_c)
+    add_node(tree, node_f)
+    add_node(tree, node_g)
+    add_node(tree, node_d)
+    add_node(tree, node_e)
+    add_node(tree, node_h)
+
+    pot_max = get_maximum_node(tree, tree.root,  payload_b.__eq__)
+    assert pot_max == node_d
+
+    pot_max = get_maximum_node(tree, tree.root, payload_a.__eq__)
+    assert pot_max == node_e
+
+    ## because of rebalancing
+    no_max = get_maximum_node(tree, node_c, payload_d.__eq__)
+    assert no_max is None

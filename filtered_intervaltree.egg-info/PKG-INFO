@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: filtered-intervaltree
-Version: 0.0.5
+Version: 0.0.6
 Summary: an intervaltree with early exit bloom filters
 Home-page: https://github.com/lostinplace/filtered-intervaltree
 Author: cwheeler

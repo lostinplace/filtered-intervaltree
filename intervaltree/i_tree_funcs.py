@@ -5,7 +5,8 @@ from .rb_tree_funcs import redblack_insert_fixup, left_rotate as rb_lr, right_ro
     rb_delete_fixup as rb_df, tree_successor
 from .easy_hashes import hash_to_64
 import math
-from typing import Generator
+from typing import Generator, Callable, List, Any
+import numbers
 from collections import deque
 
 
@@ -13,7 +14,8 @@ def check_contains(node: 'FilterableIntervalTreeNode', content: 'FilterableInter
     """
     checks to see if the specified content is available in the node's subtrees
     :param node: node root to search
-    :param content: content to search for, cand be a filterablenode, a filter vector, or content that generates a filter vector
+    :param content: content to search for, cand be a filterablenode, a filter vector, or content that generates a
+        filter vector
     :return: true if available
     """
     is_contained = content.filter_vector & node.subtree_filter_vector == content.filter_vector
@@ -101,7 +103,7 @@ def update_subtree_max_after_rotate(node: FilterableIntervalTreeNode):
 
 
 def left_rotate(tree: FilterableIntervalTree, node: FilterableIntervalTreeNode):
-    result = rb_lr(tree, node)
+    rb_lr(tree, node)
     update_subtree_filter_vector(node)
     update_subtree_filter_vector(node.parent)
     update_subtree_max_after_rotate(node)
@@ -109,7 +111,7 @@ def left_rotate(tree: FilterableIntervalTree, node: FilterableIntervalTreeNode):
 
 
 def right_rotate(tree: FilterableIntervalTree, node: FilterableIntervalTreeNode):
-    result = rb_rr(tree, node)
+    rb_rr(tree, node)
     update_subtree_filter_vector(node)
     update_subtree_filter_vector(node.parent)
     update_subtree_max_after_rotate(node)
@@ -297,3 +299,243 @@ def query_tree(
             search_queue.append(left_child)
 
         not_root = True
+
+
+def adjust_payload(tree: FilterableIntervalTree,
+                   a_node: FilterableIntervalTreeNode,
+                   adjustment_interval: Interval,
+                   adjustments: dict,
+                   filter_vector_generator: Callable[[dict], int]=None)\
+        -> List[FilterableIntervalTreeNode]:
+    """
+    Adjusts the payload of a node int its tree
+    :param tree: tee to be adjusted
+    :param a_node: node to adjust
+    :param adjustment_interval: the interval for which we would like to see the adjustments made
+    :param adjustments: the changes that we want to see made to the node's payload (only works for dictionaries)
+    :param filter_vector_generator: a function that returns a filter vector for each payload
+    :return: None
+    """
+
+    if filter_vector_generator is None:
+        filter_vector_generator = lambda x: a_node.filter_vector
+
+    old_interval = a_node.key
+    remaining_intervals = old_interval.remove(adjustment_interval)
+
+    new_payload = a_node.payload.copy()
+    relevant_keys = adjustments.keys()
+    for key in relevant_keys:
+        old_property_value = new_payload.get(key)
+        if isinstance(old_property_value, numbers.Number):
+            new_payload[key] += adjustments[key]
+        else:
+            new_payload[key] = adjustments[key]
+
+    filter_vector = filter_vector_generator(new_payload)
+    remaining_nodes = \
+        [FilterableIntervalTreeNode(_, a_node.payload.copy(), a_node.filter_vector) for _ in remaining_intervals]
+    new_node = FilterableIntervalTreeNode(adjustment_interval, new_payload, filter_vector)
+
+    result_list = [new_node] + remaining_nodes
+    result_list = sorted(result_list, key=lambda node: node.key)
+
+    added_nodes = set()
+
+    first_item = result_list[0]
+    last_item = result_list[-1]
+    first_payload = first_item.payload
+    last_payload = last_item.payload
+
+    pre_node = get_predecessor_for_node(tree, a_node, qualifier=lambda x: x == first_payload)
+    post_node = get_successor_for_node(tree, a_node, qualifier=lambda x: x == last_payload)
+
+    delete_node(tree, a_node)
+
+    if pre_node and Interval.touches(pre_node.key, first_item.key) and pre_node.payload == first_item.payload:
+        consolidate_nodes(pre_node, first_item, tree)
+        added_nodes.add(first_item)
+
+    if post_node and Interval.touches(post_node.key, last_item.key) and post_node.payload == last_item.payload:
+        consolidate_nodes(last_item, post_node, tree)
+        added_nodes.add(last_item)
+
+    for node in result_list:
+        if node not in added_nodes:
+            add_node(tree, node)
+
+    return new_node
+
+#     0(a)
+# -1(c)  3(a)
+#     2(b)  4(a)
+
+
+def get_predecessor_for_node(
+        tree: FilterableIntervalTree,
+        node: FilterableIntervalTreeNode,
+        qualifier: Callable[[Any], bool]=None,
+        filter_vector=None) -> FilterableIntervalTreeNode:
+
+    tree_nil = tree.nil
+    if qualifier is None:
+        qualifier = lambda x: node.payload == x
+
+    current = node
+    exhausted = False
+
+    while not exhausted:
+        if current.left_child is not tree_nil:
+            inspect_left_child = True
+            if filter_vector:
+                collision = filter_vector & current.left_child.subtree_filter_vector
+                inspect_left_child = filter_vector == collision
+
+            if inspect_left_child:
+                result = get_maximum_node(tree, current.left_child, qualifier)
+                if result:
+                    return result
+
+        if current.parent is not tree_nil and current is current.parent.right_child:
+            if qualifier(current.parent.payload):
+                return current.parent
+            if current.parent.left_child is not tree_nil:
+                result = get_maximum_node(tree, current.parent.left_child, qualifier)
+                if result:
+                    return result
+
+        while current.parent is not tree_nil and current.parent.left_child is current:
+            current = current.parent
+
+        if current.parent is tree_nil:
+            exhausted = True
+        # I am the right child
+        current = current.parent
+        if qualifier(current.payload):
+            return current
+
+    return None
+
+#           5(a)
+#       3(b)    6(c)
+#                  9(d)
+#                     15(e)
+# get_maximum_node("5(a)", "d" ) == 9(d)
+
+
+def get_maximum_node(
+        tree: FilterableIntervalTree,
+        node: FilterableIntervalTreeNode,
+        qualifier: Callable[[Any], bool]
+) -> FilterableIntervalTreeNode:
+    stack = deque([node])
+    while node.right_child is not tree.nil:
+        stack.append(node.right_child)
+        node = node.right_child
+
+    candidate = stack.pop()
+    while not qualifier(candidate.payload):
+        if candidate.left_child is not tree.nil:
+            stack.append(candidate.left_child)
+            node = candidate.left_child
+            while node.right_child is not tree.nil:
+                stack.append(node.right_child)
+                node = node.right_child
+        if stack:
+            candidate = stack.pop()
+        else:
+            return None
+
+    return candidate
+
+
+def get_successor_for_node(
+        tree: FilterableIntervalTree,
+        node: FilterableIntervalTreeNode,
+        qualifier: Callable[[Any], bool]=None,
+        filter_vector=None) \
+        -> FilterableIntervalTreeNode:
+
+    tree_nil = tree.nil
+    if qualifier is None:
+        qualifier = lambda x: node.payload == x
+
+    current = node
+    exhausted = False
+    result = None
+
+    while not exhausted:
+        if current.right_child is not tree_nil:
+            inspect_right_child = True
+            if filter_vector:
+                collision = filter_vector & current.left_child.subtree_filter_vector
+                inspect_right_child = filter_vector == collision
+
+            if inspect_right_child:
+                result = get_maximum_node(tree, current.right_child, qualifier)
+                if result:
+                    return result
+
+            if result:
+                return result
+        if current.parent is not tree_nil and current is current.parent.left_child:
+            if qualifier(current.parent.payload):
+                return current.parent
+            if current.parent.right_child is not tree_nil:
+                result = get_maximum_node(tree, current.parent.right_child, qualifier)
+                if result:
+                    return result
+
+        while current.parent is not tree_nil and current.parent.right_child is current:
+            current = current.parent
+
+        if current.parent is tree_nil:
+            exhausted = True
+        # I am the left child
+        current = current.parent
+        if qualifier(current.payload):
+            return current
+
+    return None
+
+
+def get_minimum_node(
+        tree: FilterableIntervalTree, node: FilterableIntervalTreeNode, qualifier: Callable[[Any], bool]
+) -> FilterableIntervalTreeNode:
+    stack = deque([node])
+    while node.left_child is not tree.nil:
+        stack.append(node.left_child)
+        node = node.left_child
+
+    candidate = stack.pop()
+    while not qualifier(candidate.payload):
+        if candidate.right_child is not tree.nil:
+            stack.append(candidate.right_child)
+            node = candidate.right_child
+            while node.left_child is not tree.nil:
+                stack.append(node.left_child)
+                node = node.left_child
+        if stack:
+            candidate = stack.pop()
+        else:
+            return None
+
+    return candidate
+
+
+def consolidate_nodes(pre_node: FilterableIntervalTreeNode,
+                      post_node: FilterableIntervalTreeNode,
+                      tree: FilterableIntervalTree) \
+        -> FilterableIntervalTreeNode:
+
+    new_interval = Interval(pre_node.key.begin, post_node.key.end)
+    new_node = FilterableIntervalTreeNode(new_interval, pre_node.payload, pre_node.filter_vector)
+
+    if pre_node.tree is tree:
+        delete_node(tree, pre_node)
+
+    if post_node.tree is tree:
+        delete_node(tree, post_node)
+
+    add_node(tree, new_node)
+    return new_node
